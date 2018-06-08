@@ -1,7 +1,7 @@
 """
 Topic Handlers for Watchtower
 """
-__author__ = ['Kemal Berk Kocabagli', 'Enis Simsar']
+__author__ = ['Enis Simsar', 'Kemal Berk Kocabagli']
 
 import tornado.web
 import tornado.escape
@@ -113,7 +113,7 @@ class CreateEditTopicHandler(BaseHandler, TemplateRendering):
         except:
             alert['domains'] = ""
         alert['description'] = self.get_argument("description")
-        keywordlimit = 10 - len(self.get_argument("keywords").split(","))
+        keywordlimit = 20 - len(self.get_argument("keywords").split(","))
         alert['keywordlimit'] = keywordlimit
         # alert['excludedkeywords'] = ",".join(self.get_argument("excludedkeywords").split(","))
         if len(self.request.arguments.get("languages")) != 0:

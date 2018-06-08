@@ -35,6 +35,9 @@ DROP TABLE public.signal_strenghts;
 DROP TABLE public.relevant_locations;
 DROP TABLE public.country_code;
 DROP TABLE public.archived_topics;
+DROP TABLE public.crons_log;
+DROP TABLE public.fetch_followers_job_queue;
+DROP SEQUENCE public.cron_log_id_seq;
 DROP EXTENSION adminpack;
 DROP EXTENSION plpgsql;
 DROP SCHEMA public;
@@ -129,20 +132,6 @@ ALTER TABLE archived_topics OWNER TO ${POSTGRESQL_USER};
 
 COMMENT ON COLUMN archived_topics.audience_deleted IS 'if this topic''s audience has been deleted before, this field will be True';
 
-
---
--- Name: audience_parameters; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
---
-
-CREATE TABLE audience_parameters (
-    topic_id bigint NOT NULL,
-    location text NOT NULL,
-    signal_strength bigint
-);
-
-
-ALTER TABLE audience_parameters OWNER TO ${POSTGRESQL_USER};
-
 --
 -- Name: audience_samples_last_executed; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
 --
@@ -199,20 +188,6 @@ CREATE TABLE hidden_influencers (
 ALTER TABLE hidden_influencers OWNER TO ${POSTGRESQL_USER};
 
 --
--- Name: influencer_parameters; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
---
-
-CREATE TABLE influencer_parameters (
-    topic_id bigint NOT NULL,
-    location text NOT NULL,
-    signal_strength bigint DEFAULT 3,
-    following_limit bigint
-);
-
-
-ALTER TABLE influencer_parameters OWNER TO ${POSTGRESQL_USER};
-
---
 -- Name: location_country_codes; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
 --
 
@@ -249,6 +224,18 @@ CREATE TABLE topic_facebook_page (
 ALTER TABLE topic_facebook_page OWNER TO ${POSTGRESQL_USER};
 
 --
+-- Name: topic_hashtag; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
+--
+
+CREATE TABLE topic_hashtag (
+    topic_id bigint,
+    hashtag text
+);
+
+
+ALTER TABLE topic_hashtag OWNER TO ${POSTGRESQL_USER};
+
+--
 -- Name: topic_id_seq; Type: SEQUENCE; Schema: public; Owner: ${POSTGRESQL_USER}
 --
 
@@ -261,6 +248,20 @@ CREATE SEQUENCE topic_id_seq
 
 
 ALTER TABLE topic_id_seq OWNER TO ${POSTGRESQL_USER};
+
+--
+-- Name: cron_log_id_seq; Type: SEQUENCE; Schema: public; Owner: ${POSTGRESQL_USER}
+--
+
+CREATE SEQUENCE cron_log_id_seq
+    START WITH 0
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE cron_log_id_seq OWNER TO ${POSTGRESQL_USER};
 
 --
 -- Name: topic_subreddit; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
@@ -289,7 +290,8 @@ CREATE TABLE topics (
     last_tweet_date date,
     is_running boolean DEFAULT true,
     is_publish boolean DEFAULT false,
-    last_news_date date
+    last_news_date date,
+    is_masked_location boolean default false
 );
 
 
@@ -346,6 +348,20 @@ CREATE SEQUENCE user_id_seq
 
 
 ALTER TABLE user_id_seq OWNER TO ${POSTGRESQL_USER};
+
+--
+-- Name: cron_log_id_seq; Type: SEQUENCE; Schema: public; Owner: ${POSTGRESQL_USER}
+--
+
+CREATE SEQUENCE cron_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE cron_log_id_seq OWNER TO ${POSTGRESQL_USER};
 
 --
 -- Name: user_news_rating; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
@@ -409,7 +425,8 @@ CREATE TABLE user_twitter (
     access_token_secret text,
     profile_image_url text,
     user_name text,
-    screen_name text
+    screen_name text,
+    twitter_id text
 );
 
 
@@ -433,6 +450,37 @@ CREATE TABLE users (
 
 
 ALTER TABLE users OWNER TO ${POSTGRESQL_USER};
+
+--
+-- Name: topics; Type: TABLE; Schema: public; Owner: ${POSTGRESQL_USER}
+--
+
+CREATE TABLE crons_log (
+    id bigint DEFAULT nextval('cron_log_id_seq'::regclass) NOT NULL,
+    cron_name text,
+    started_at timestamp,
+    ended_at timestamp,
+    status boolean DEFAULT false,
+    frequency text
+);
+l
+
+ALTER TABLE crons_log OWNER TO ${POSTGRESQL_USER};
+
+CREATE TABLE public.fetch_followers_job_queue (
+  user_id bigint,
+  influencer_id text COLLATE "pg_catalog"."default" NOT NULL,
+  "creation_time" timestamp(6),
+  "updated_time" timestamp(6),
+  "status" text COLLATE "pg_catalog"."default"
+)
+;
+ALTER TABLE public.fetch_followers_job_queue OWNER TO ${POSTGRESQL_USER};
+
+-- ----------------------------
+-- Primary Key structure for table fetch_followers_job_queue
+-- ----------------------------
+ALTER TABLE "public"."fetch_followers_job_queue" ADD CONSTRAINT "fetch_followers_job_queue_pkey" PRIMARY KEY ("influencer_id");
 
 --
 -- Name: users_and_topics; Type: VIEW; Schema: public; Owner: ${POSTGRESQL_USER}
@@ -466,14 +514,6 @@ ALTER TABLE ONLY added_influencers
 
 
 --
--- Name: audience_parameters audience_id; Type: CONSTRAINT; Schema: public; Owner: ${POSTGRESQL_USER}
---
-
-ALTER TABLE ONLY audience_parameters
-    ADD CONSTRAINT audience_id PRIMARY KEY (topic_id, location);
-
-
---
 -- Name: hidden_events hidden_events_pkey; Type: CONSTRAINT; Schema: public; Owner: ${POSTGRESQL_USER}
 --
 
@@ -487,14 +527,6 @@ ALTER TABLE ONLY hidden_events
 
 ALTER TABLE ONLY hidden_influencers
     ADD CONSTRAINT hidden_influencers_pkey PRIMARY KEY (topic_id, country_code, influencer_id);
-
-
---
--- Name: influencer_parameters id; Type: CONSTRAINT; Schema: public; Owner: ${POSTGRESQL_USER}
---
-
-ALTER TABLE ONLY influencer_parameters
-    ADD CONSTRAINT id PRIMARY KEY (topic_id, location);
 
 
 --

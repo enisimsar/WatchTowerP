@@ -3,6 +3,7 @@ from datetime import datetime
 from time import sleep
 import sys
 import tweepy
+import json
 
 sys.path.insert(0, '/root/cloud')
 
@@ -19,20 +20,6 @@ def get_twitter_api(access_token, access_token_secret):
     auth.set_access_token(access_token, access_token_secret)
     api = tweepy.API(auth)
     return api
-
-
-def get_user_topics(user_id):
-    with Connection.Instance().get_cursor() as cur:
-        sql = (
-            "SELECT topic_id, ARRAY_agg(tweet_id) as tweets "
-            "FROM user_tweet "
-            "WHERE user_id = %s "
-            "GROUP BY topic_id;"
-        )
-        cur.execute(sql, [user_id])
-        var = cur.fetchall()
-
-        return var
 
 
 def get_users():
@@ -57,7 +44,7 @@ def get_tokens(user_id):
         fetched = cur.fetchone()
         if fetched[0]:
             sql = (
-                "SELECT access_token, access_token_secret "
+                "SELECT access_token, access_token_secret, twitter_id "
                 "FROM user_twitter "
                 "WHERE user_id = %s;"
             )
@@ -73,9 +60,10 @@ def publish_tweet(topic_id, tweet, url, access_token, access_token_secret):
     try:
         s = api.update_status(text)
         id_str = s.id_str
+        original_tweet = s._json
         link = "https://twitter.com/statuses/" + id_str
         Connection.Instance().tweetsDB[str(topic_id)].update_one(
-            {'tweet_id': tweet['tweet_id']}, {'$set': {'status': 1, 'tweet_link': link}}, upsert=True)
+            {'tweet_id': tweet['tweet_id']}, {'$set': {'status': 1, 'tweet_link': link, 'tweet': original_tweet}}, upsert=True)
     except Exception as e:
         print(e)
         Connection.Instance().tweetsDB[str(topic_id)].update_one(
@@ -87,20 +75,21 @@ def main():
     while True:
         users = get_users()
         for user_id in users:
-            tokens = None
             tokens = get_tokens(user_id)
             if tokens['response']:
                 tokens = tokens['tokens']
-                user_topics = get_user_topics(user_id)
-                print(user_id, "\n", user_topics)
-                for topic_tweet in user_topics:
+                for topic_id in Connection.Instance().tweetsDB.collection_names():
+                    if topic_id == 'counters':
+                        continue
                     tweets = list(
-                        Connection.Instance().tweetsDB[str(topic_tweet[0])].find(
-                            {'published_at': {'$lte': datetime.now()}, 'tweet_id': {'$in': topic_tweet[1]}, 'status': 0}))
+                        Connection.Instance().tweetsDB[str(topic_id)].find(
+                            {'published_at': {'$lte': datetime.now()}, 'user_id': str(user_id), 'twitter_id': tokens[2],
+                             'status': 0}))
                     for tweet in tweets:
-                        print("Publishing tweet_id: {0} and topic_id: {1}".format(tweet['tweet_id'], topic_tweet[0]))
-                        url = "{0}redirect?topic_id={1}&tweet_id={2}".format(config("HOST_URL"), topic_tweet[0], tweet['tweet_id'])
-                        publish_tweet(topic_tweet[0], tweet, url, tokens[0], tokens[1])
+                        print("Publishing tweet_id: {0} and topic_id: {1}".format(tweet['tweet_id'], topic_id))
+                        url = "{0}redirect?topic_id={1}&tweet_id={2}".format(config("HOST_URL"), topic_id,
+                                                                             tweet['tweet_id'])
+                        publish_tweet(topic_id, tweet, url, tokens[0], tokens[1])
         sleep(300)
 
 

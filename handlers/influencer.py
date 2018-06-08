@@ -99,6 +99,16 @@ class HideInfluencerHandler(BaseHandler, TemplateRendering):
         self.write("")
 
 
+class FetchFollowersHandler(BaseHandler, TemplateRendering):
+    @tornado.web.authenticated
+    def post(self):
+        user_id = tornado.escape.xhtml_escape(self.current_user)
+        influencer_id = str(self.get_argument("influencer_id"))
+        fetching = (self.get_argument("fetching") == "true")
+        logic.add_or_delete_fetch_followers_job(user_id, influencer_id, fetching)
+        self.write("")
+
+
 """
 API handlers
 """

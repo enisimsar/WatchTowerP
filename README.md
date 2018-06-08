@@ -60,12 +60,20 @@ To deploy this project you need Docker and Docker-compose to be installed in you
 
 Open your favourite browser and type [http://localhost:8484](http://localhost:8484)
 
+## Run
+
+* Run the following command to start server
+
+```$ sudo bash run.sh```
+
+Open your favourite browser and type [http://localhost:8484](http://localhost:8484)
+
 
 ## Authors
 
 * **Enis Simsar** - *Initial work* - [enisimsar](https://github.com/enisimsar)
 * **Kemal Berk Kocabağlı** - [berk94](https://github.com/berk94)
-* **Barış Can Esmer** - *Initial work* - [barisesmer](https://github.com/barisesmer)
+* **Barış Can Esmer** - [barisesmer](https://github.com/barisesmer)
 
 See also the list of [contributors](https://github.com/enisimsar/WatchTower/contributors) who participated in this project.
 

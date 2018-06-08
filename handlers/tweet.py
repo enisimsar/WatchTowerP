@@ -1,7 +1,7 @@
 """
 Tweet Handlers for Watchtower
 """
-__author__ = ['Kemal Berk Kocabagli', 'Enis Simsar']
+__author__ = ['Enis Simsar', 'Kemal Berk Kocabagli']
 
 import tornado.web
 
@@ -30,7 +30,7 @@ class NewTweetsHandler(BaseHandler, TemplateRendering):
 
 class RedirectHandler(BaseHandler, TemplateRendering):
     def get(self):
-        user_agent = self.request.headers["User-Agent"]
+        user_agent = self.request.headers["User-Agent"] if "User-Agent" in self.request.headers else ""
         tweet_id = int(self.get_argument("tweet_id", -1))
         topic_id = int(self.get_argument("topic_id", -1))
         tweet = logic.get_tweet(topic_id, tweet_id)
@@ -61,6 +61,10 @@ class TweetsHandler(BaseHandler, TemplateRendering):
             news_id = int(self.get_argument("news_id", -1))
             date = self.get_argument("date", "")
             new_tweet = int(tweet_id) == -1
+            if new_tweet:
+                twitter_user = logic.get_twitter_user(user_id)
+                if twitter_user['twitter_id'] == '':
+                    self.redirect("/twitter_auth")
             sub_type = "item"
             tweets = logic.get_publish_tweet(topic['topic_id'], user_id, tweet_id, news_id, date)
         else:
@@ -109,4 +113,3 @@ class TweetsHandler(BaseHandler, TemplateRendering):
             self.redirect("/Tweets")
         else:
             self.write({'response': True})
-

@@ -1,8 +1,10 @@
+redis
 psycopg2
 pymongo
 newspaper3k
 timeout_decorator
 tweepy
+numpy
 praw
 facebook-sdk
 jellyfish
@@ -11,3 +13,6 @@ pycountry
 raven
 python-decouple
 python-crontab
+tornado
+jinja2
+bson
